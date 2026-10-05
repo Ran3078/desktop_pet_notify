@@ -1,0 +1,61 @@
+{
+  "name": "薄荷帽帽（圖片皮膚範例）",
+  "frame_size": [
+    140,
+    120
+  ],
+  "sheet": "sheet.png",
+  "flip_when_left": true,
+  "states": {
+    "idle": {
+      "row": 0,
+      "frames": 4,
+      "fps": 4
+    },
+    "walk": {
+      "row": 1,
+      "frames": 4,
+      "fps": 8
+    },
+    "happy": {
+      "row": 2,
+      "frames": 4,
+      "fps": 8
+    },
+    "angry": {
+      "row": 3,
+      "frames": 2,
+      "fps": 10
+    },
+    "alert": {
+      "row": 4,
+      "frames": 4,
+      "fps": 10
+    },
+    "sleep": {
+      "row": 5,
+      "frames": 2,
+      "fps": 1
+    },
+    "sit": {
+      "row": 6,
+      "frames": 1,
+      "fps": 1
+    },
+    "drag": {
+      "row": 7,
+      "frames": 1,
+      "fps": 1
+    },
+    "greet": {
+      "row": 8,
+      "frames": 4,
+      "fps": 8
+    },
+    "pomodoro": {
+      "row": 9,
+      "frames": 1,
+      "fps": 1
+    }
+  }
+}

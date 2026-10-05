@@ -1,0 +1,18 @@
+# 虛擬環境
+.venv/
+
+# 執行期產生
+logs/
+data/
+__pycache__/
+*.pyc
+
+# Google OAuth 機密
+credentials.json
+token.json
+
+# 打包輸出
+build/
+dist/
+
+.env
