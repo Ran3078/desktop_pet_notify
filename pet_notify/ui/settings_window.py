@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
 )
 
 from .. import win_sys
+from ..pet.generator.skin_writer import delete_skin, is_user_skin
 from ..pet.skins.registry import list_skins
 from ..reminders.pomodoro import PHASE_LABEL
 from ..sound import BUILTIN_SOUNDS
@@ -133,7 +134,12 @@ class SettingsWindow(QWidget):
         f = QFormLayout(appearance)
         f.addRow(self._pet_visible)
         f.addRow("大小", self._pet_size)
+        self._create_char = QPushButton("🎨 從圖片建立角色…")
+        self._create_char.clicked.connect(self._open_creator)
+        self._delete_char = QPushButton("🗑 刪除這個角色")
+        self._delete_char.clicked.connect(self._delete_character)
         f.addRow("皮膚", self._skin)
+        f.addRow("", _row(self._create_char, self._delete_char, "stretch"))
         f.addRow("配色", self._color)
         f.addRow("配件", self._accessory)
         # 圖片皮膚不支援配色與配件：說明原因並提供一鍵切回內建皮膚
@@ -195,11 +201,45 @@ class SettingsWindow(QWidget):
             combo.setToolTip(tip)
         self._skin_hint.setText(f"ℹ️ 「{self._skin.currentText()}」是圖片皮膚，配色與配件只適用於內建的麻糬貓。")
         self._skin_hint_row.setVisible(custom)
+        self._delete_char.setVisible(is_user_skin(self._skin.currentData() or ""))
 
     def _on_skin_choice(self) -> None:
         self._set(skin=self._skin.currentData() or "builtin")
         if not self._loading:
             self._refresh_appearance()
+
+    def _reload_skins(self, select: str) -> None:
+        self._loading = True
+        try:
+            self._skin.clear()
+            for skin_id, name in list_skins():
+                self._skin.addItem(name, skin_id)
+        finally:
+            self._loading = False
+        self._skin.setCurrentIndex(max(0, self._skin.findData(select)))
+        self._on_skin_choice()
+
+    def _open_creator(self) -> None:
+        from .character_creator import CharacterCreator
+
+        dlg = CharacterCreator(self)
+        if dlg.exec() and dlg.skin_id:
+            self._reload_skins(dlg.skin_id)
+
+    def _delete_character(self) -> None:
+        skin_id = self._skin.currentData() or ""
+        if not is_user_skin(skin_id):
+            return
+        name = self._skin.currentText()
+        if QMessageBox.question(self, "刪除角色", f"確定要刪除「{name}」嗎？角色圖片會一起刪掉，無法復原。") != QMessageBox.Yes:
+            return
+        self._reload_skins("builtin")  # 先切回內建皮膚，避免桌寵正在使用被刪的檔案
+        try:
+            delete_skin(skin_id)
+        except OSError:
+            log.exception("刪除角色失敗")
+            QMessageBox.warning(self, "刪除失敗", "無法刪除角色檔案，詳細原因請看 logs/app.log。")
+        self._reload_skins("builtin")
 
     def _refresh_affection(self) -> None:
         st = self._state.state
