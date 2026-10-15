@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import logging
 
-from PySide6.QtCore import QTime, Qt
-from PySide6.QtGui import QColor
+from PySide6.QtCore import QPoint, QTime, Qt
+from PySide6.QtGui import QColor, QCursor, QGuiApplication
 from PySide6.QtWidgets import (
     QCheckBox, QComboBox, QFileDialog, QFormLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit, QListWidget,
     QMessageBox, QProgressBar, QPushButton, QSizePolicy, QSlider, QSpinBox, QTabWidget, QTimeEdit, QVBoxLayout,
@@ -55,12 +55,18 @@ def _row(*widgets) -> QWidget:
     return w
 
 
+PREFERRED_W, PREFERRED_H = 1180, 760
+MIN_W, MIN_H = 900, 600
+SCREEN_MARGIN = 24
+TITLE_BAR_FALLBACK = 32
+
+
 class SettingsWindow(QWidget):
     def __init__(self, config, state_mgr, calendar, sound, pomodoro, show_agenda=None):
         super().__init__(None, Qt.Window)
         self.setWindowTitle("桌寵設定器")
-        self.resize(1180, 760)
-        self.setMinimumSize(900, 600)
+        self.resize(PREFERRED_W, PREFERRED_H)
+        self.setMinimumSize(MIN_W, MIN_H)
         self.setStyleSheet(STYLE)
         self._config = config
         self._state = state_mgr
@@ -90,10 +96,41 @@ class SettingsWindow(QWidget):
 
     def show_and_raise(self) -> None:
         self._load_values()
+        if not self.isVisible() and not self._title_bar_on_screen():
+            self._place_on_screen()
         self.show()
+        if not self._title_bar_on_screen():  # 顯示後才知道實際的框線大小，再檢查一次
+            self._place_on_screen()
         self.setWindowState(self.windowState() & ~Qt.WindowMinimized)
         self.raise_()
         self.activateWindow()
+
+    # ---- 視窗位置 ----
+    def _title_bar_on_screen(self) -> bool:
+        """標題列（左右兩端）都在某個螢幕的可用範圍內，才拖得動視窗。第一次開啟前一律視為不在。"""
+        if not getattr(self, "_placed", False):
+            return False
+        frame = self.frameGeometry()
+        points = (QPoint(frame.left() + 40, frame.top() + 8), QPoint(frame.right() - 40, frame.top() + 8))
+        return all(any(sc.availableGeometry().contains(pt) for sc in QGuiApplication.screens()) for pt in points)
+
+    def _place_on_screen(self) -> None:
+        """放到滑鼠所在的螢幕中央；螢幕太小就縮小視窗，確保標題列看得到、可以拖曳。"""
+        screen = QGuiApplication.screenAt(QCursor.pos()) or QGuiApplication.primaryScreen()
+        avail = screen.availableGeometry()
+        title_h = (self.frameGeometry().height() - self.geometry().height()) if self.isVisible() else 0
+        title_h = title_h or TITLE_BAR_FALLBACK
+        max_w = avail.width() - SCREEN_MARGIN * 2
+        max_h = avail.height() - SCREEN_MARGIN * 2 - title_h
+        self.setMinimumSize(min(MIN_W, max_w), min(MIN_H, max_h))
+        w, h = min(PREFERRED_W, max_w), min(PREFERRED_H, max_h)
+        self.resize(w, h)
+        # move() 對頂層視窗設定的是含框線的左上角
+        x = avail.x() + (avail.width() - w) // 2
+        y = avail.y() + max(SCREEN_MARGIN, (avail.height() - h - title_h) // 2)
+        self.move(x, y)
+        self._placed = True
+        log.info("設定器放在螢幕 %s：%dx%d @ (%d, %d)", screen.name(), w, h, x, y)
 
     def _set(self, **kw) -> None:
         if not self._loading:
